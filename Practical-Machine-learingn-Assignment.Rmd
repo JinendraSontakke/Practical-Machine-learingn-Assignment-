@@ -1,0 +1,322 @@
+---
+title: "Practical Machine Learning - Prediction Assignment Writeup"
+author: "Jinendra Sontakke"
+date: "02/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Summary of background:
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Load library
+```{r}
+library(data.table)
+library(ggplot2)
+library(caret)
+library(dplyr)
+library(rpart)
+library(gbm)
+library(randomForest)
+```
+
+
+## Load data
+```{r}
+data_train <- read.csv("C:/Users/Lenovo/Desktop/peer4/Practical-Machine-learingn-Assignment-/pml-training.csv")
+data_test <- read.csv("C:/Users/Lenovo/Desktop/peer4/Practical-Machine-learingn-Assignment-/pml-training.csv")
+dim(data_train)
+dim(data_test)
+summary(data_train$classe)
+```
+
+## Dataset partition for training data
+```{r}
+data_train_part <- createDataPartition(data_train$classe, p=0.7, list=FALSE)
+data_train_train <- data_train[data_train_part, ]
+data_train_test <- data_train[-data_train_part, ]
+dim(data_train_train)
+dim(data_train_test)
+```
+
+## Remove useless variable for identification
+```{r}
+data_train_train <- data_train_train[, -c(1:5)]
+data_train_test  <- data_train_test[, -c(1:5)]
+data_test  <- data_test[, -c(1:5)]
+```
+
+## Near zero variance elimination
+```{r}
+col_nzv <- nearZeroVar(data_train_train)
+data_train_train <- data_train_train[, -col_nzv]
+data_train_test  <- data_train_test[, -col_nzv]
+data_test <- data_test[, -col_nzv]
+dim(data_train_train)
+dim(data_train_test)
+dim(data_test)
+```
+
+## Remove NA variable (include almost NA)
+```{r}
+col_na  <- sapply(data_train_train, function(x) mean(is.na(x))) >0.9
+data_train_train <- data_train_train[, col_na==FALSE]
+data_train_test  <- data_train_test[, col_na==FALSE]
+data_test <- data_test[, col_na==FALSE]
+dim(data_train_train)
+dim(data_train_test)
+dim(data_test)
+
+summary(data_train_train)
+summary(data_test)
+```
+
+
+
+##Frequency plot
+```{r}
+plot(data_train_train$classe, main="Frequency of different levels", xlab="classe")
+```
+
+## Prediction models
+
+
+
+### 1. Decision tree
+```{r}
+# Fitting model
+model_tree <- randomForest(classe ~., data=data_train_train, method="rpart")
+
+# Predicting
+predict_tree <- predict(model_tree, data_train_test, Type="rpart")
+
+# Testing
+confusionMatrix(predict_tree, data_train_test$classe)
+```
+
+### 2. Boosting (gradient boosting)
+```{r}
+# Fitting model
+Control <- trainControl(method="repeatedcv", number=5, repeats=1)
+model_rf <- randomForest(classe ~., data=data_train_train, method="gbm",trControl=Control, verbose=FALSE)
+
+# Predicting
+predict_rf <- predict(model_rf, data_train_test, Type="gbm")
+
+# Testing
+confusionMatrix(predict_rf, data_train_test$classe)
+```
+
+### 3. Random forest
+```{r}
+# Fitting model
+model_rf <- randomForest(classe ~., data=data_train_train, method="class")
+
+# Predicting
+predict_rf <- predict(model_rf, data_train_test, Type="class")
+
+# Testing
+confusionMatrix(predict_rf, data_train_test$classe)
+```
+
+## Apply to 20 test data
+```{r}
+predict_test <- predict(model_rf, data_test)
+predict_test
+```
+
+## Dataset partition for training data
+```{r}
+data_train_part <- createDataPartition(data_train$classe, p=0.7, list=FALSE)
+data_train_train <- data_train[data_train_part, ]
+data_train_test <- data_train[-data_train_part, ]
+dim(data_train_train)
+dim(data_train_test)
+```
+
+## Remove useless variable for identification
+```{r}
+data_train_train <- data_train_train[, -c(1:5)]
+data_train_test  <- data_train_test[, -c(1:5)]
+data_test  <- data_test[, -c(1:5)]
+```
+
+## Near zero variance elimination
+```{r}
+col_nzv <- nearZeroVar(data_train_train)
+data_train_train <- data_train_train[, -col_nzv]
+data_train_test  <- data_train_test[, -col_nzv]
+data_test <- data_test[, -col_nzv]
+dim(data_train_train)
+dim(data_train_test)
+dim(data_test)
+```
+
+## Remove NA variable (include almost NA)
+```{r}
+col_na  <- sapply(data_train_train, function(x) mean(is.na(x))) >0.9
+data_train_train <- data_train_train[, col_na==FALSE]
+data_train_test  <- data_train_test[, col_na==FALSE]
+data_test <- data_test[, col_na==FALSE]
+dim(data_train_train)
+dim(data_train_test)
+dim(data_test)
+summary(data_train_train)
+summary(data_test)
+```
+
+
+
+##Frequency plot
+```{r}
+plot(data_train_train$classe, main="Frequency of different levels", xlab="classe")
+```
+
+## Prediction models
+
+
+
+### 1. Decision tree
+```{r}
+# Fitting model
+model_tree <- randomForest(classe ~., data=data_train_train, method="rpart")
+# Predicting
+predict_tree <- predict(model_tree, data_train_test, Type="rpart")
+# Testing
+confusionMatrix(predict_tree, data_train_test$classe)
+```
+
+### 2. Boosting (gradient boosting)
+```{r}
+# Fitting model
+Control <- trainControl(method="repeatedcv", number=5, repeats=1)
+model_rf <- randomForest(classe ~., data=data_train_train, method="gbm",trControl=Control, verbose=FALSE)
+# Predicting
+predict_rf <- predict(model_rf, data_train_test, Type="gbm")
+# Testing
+confusionMatrix(predict_rf, data_train_test$classe)
+```
+
+### 3. Random forest
+```{r}
+# Fitting model
+model_rf <- randomForest(classe ~., data=data_train_train, method="class")
+# Predicting
+predict_rf <- predict(model_rf, data_train_test, Type="class")
+# Testing
+confusionMatrix(predict_rf, data_train_test$classe)
+```
+
+## Apply to 20 test data
+```{r}
+predict_test <- predict(model_rf, data_test)
+predict_test
+```
+# Dowload the files (if necessary) and read them into memory
+The files are read into memory. Various indicators of missing data (i.e., “NA”, “#DIV/0!” and “”) are all set to NA so they can be processed.
+
+```{r}
+downloadcsv <- function(url, nastrings) {
+    temp <- tempfile()
+    download.file(url, temp, method = "curl")
+    data <- read.csv(temp, na.strings = nastrings)
+    unlink(temp)
+    return(data)
+}
+trainurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+train <- downloadcsv(trainurl, c("", "NA", "#DIV/0!"))
+testurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+test <- downloadcsv(testurl, c("", "NA", "#DIV/0!"))
+```
+The training data has 19622 observations and 160 features, and the distribution of the five measured stances A,B,C,D,E is:
+
+```{r}
+dim(train)
+```
+
+```{r}
+table(train$classe)
+```
+#Preprocessing
+##Partitioning the training set
+We separate our training data into a training set and a validation set so that we can validate our model.
+
+```{r}
+library(caret)
+```
+```{r}
+set.seed(123456)
+trainset <- createDataPartition(train$classe, p = 0.8, list = FALSE)
+Training <- train[trainset, ]
+Validation <- train[-trainset, ]
+```
+##Feature selection
+First we clean up near zero variance features, columns with missing values and descriptive fields.
+
+```{r}
+# exclude near zero variance features
+nzvcol <- nearZeroVar(Training)
+Training <- Training[, -nzvcol]
+# exclude columns with m40% ore more missing values exclude descriptive
+# columns like name etc
+cntlength <- sapply(Training, function(x) {
+    sum(!(is.na(x) | x == ""))
+})
+nullcol <- names(cntlength[cntlength < 0.6 * length(Training$classe)])
+descriptcol <- c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", 
+    "cvtd_timestamp", "new_window", "num_window")
+excludecols <- c(descriptcol, nullcol)
+Training <- Training[, !names(Training) %in% excludecols]
+```
+#Model Train
+We will use random forest as our model as implemented in the randomForest package by Breiman's random forest algorithm (based on Breiman and Cutler's original Fortran code) for classification and regression.
+
+```{r}
+library(randomForest)
+```
+```{r}
+rfModel <- randomForest(classe ~ ., data = Training, importance = TRUE, ntrees = 10)
+```
+##Model Validation
+Let us now test our model performance on the training set itself and the cross validation set.
+
+##Training set accuracy
+```{r}
+ptraining <- predict(rfModel, Training)
+print(confusionMatrix(ptraining, Training$classe))
+```
+Obviously our model performs excellent against the training set, but we need to cross validate the performance against the held out set and see if we have avoided overfitting.
+
+#Validation set accuracy (Out-of-Sample)
+Let us now see how our model performs on the cross validation set that we held out from training.
+
+```{r}
+pvalidation <- predict(rfModel, Validation)
+print(confusionMatrix(pvalidation, Validation$classe))
+```
+
+The cross validation accuracy is 99.5% and the out-of-sample error is therefore 0.5% so our model performs rather good.
+
+#Test set prediction
+The prediction of our algorithm for the test set is:
+```{r}
+ptest <- predict(rfModel, test)
+ptest
+```
+
+We then save the output to files according to instructions and post it to the submission page.
+```{r}
+answers <- as.vector(ptest)
+pml_write_files = function(x) {
+    n = length(x)
+    for (i in 1:n) {
+        filename = paste0("problem_id_", i, ".txt")
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+            col.names = FALSE)
+    }
+}
+pml_write_files(answers)
+```
